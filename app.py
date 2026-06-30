@@ -66,17 +66,16 @@ st.sidebar.subheader("Strategy Allocations (%)")
 
 allocations = {}
 for strat in strategies:
-    # Convert name to lowercase to avoid layout/naming case sensitivity mismatches
     strat_lower = strat.lower()
     
-    # Force robust default matches based on keywords
+    # Assign correct default positions using robust case-insensitive keyword checks
     if "perezoso" in strat_lower:
         default_val = 10
     elif "seis" in strat_lower:
         default_val = 30
-    elif "defensiva" in strat_lower:
+    elif "defensiva" in strat_lower or "d4" in strat_lower:
         default_val = 20
-    elif "weather" in strat_lower:
+    elif "weather" in strat_lower or "taa" in strat_lower:
         default_val = 30
     elif "core9" in strat_lower or "core 9" in strat_lower:
         default_val = 30
@@ -266,8 +265,8 @@ if not yearly_df.empty:
     def color_returns(val):
         return 'color: red' if val < 0 else 'color: green'
     
-    # Apply format styles to designated data headers
-    styled_yearly_df = yearly_df.style.applymap(color_returns, subset=style_target_cols)\
+    # Notice: changed .applymap() to .map() to support modern Pandas deployment on the cloud!
+    styled_yearly_df = yearly_df.style.map(color_returns, subset=style_target_cols)\
                                       .format(format_dict)
     
     # Display dataframe with hidden tracking index column
