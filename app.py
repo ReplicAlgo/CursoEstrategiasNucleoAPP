@@ -65,9 +65,24 @@ show_benchmarks = st.sidebar.checkbox("Show Benchmarks (SPY & 60/40)", value=Tru
 st.sidebar.subheader("Strategy Allocations (%)")
 
 allocations = {}
-# Default the first strategy to 100%, others to 0%
-for i, strat in enumerate(strategies):
-    default_val = 100 if i == 0 else 0
+for strat in strategies:
+    # Convert name to lowercase to avoid layout/naming case sensitivity mismatches
+    strat_lower = strat.lower()
+    
+    # Force robust default matches based on keywords
+    if "perezoso" in strat_lower:
+        default_val = 10
+    elif "seis" in strat_lower:
+        default_val = 30
+    elif "defensiva" in strat_lower:
+        default_val = 20
+    elif "weather" in strat_lower:
+        default_val = 30
+    elif "core9" in strat_lower or "core 9" in strat_lower:
+        default_val = 30
+    else:
+        default_val = 0
+            
     allocations[strat] = st.sidebar.slider(f"{strat}", 0, 200, default_val, step=5,
                                            help="0 = off, 100 = full size, >100 = leverage")
 
