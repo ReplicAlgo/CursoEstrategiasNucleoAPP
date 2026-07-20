@@ -333,6 +333,9 @@ if not yearly_df.empty:
         columns_to_keep = ['Year', 'Return']
         yearly_df = yearly_df[columns_to_keep]
 
+    # Invertimos el dataframe para que el año más reciente aparezca primero
+    yearly_df = yearly_df.iloc[::-1]
+
     # Color negative numbers red, positive numbers green
     def color_returns(val):
         return 'color: red' if val < 0 else 'color: green'
