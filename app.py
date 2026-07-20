@@ -2,6 +2,7 @@ import streamlit as st
 import pandas as pd
 import numpy as np
 import os
+import hashlib
 from plotly.subplots import make_subplots
 import plotly.graph_objects as go
 
@@ -30,9 +31,12 @@ def load_data():
 
 # --- Load Summary Table ---
 @st.cache_data
-def load_summary_table(_file_mtime):
-    # _file_mtime se pasa como argumento únicamente para que Streamlit invalide
-    # el caché automáticamente cada vez que SummaryTable.csv cambie en disco.
+def load_summary_table(_file_hash):
+    # _file_hash (hash del CONTENIDO del archivo, no de su fecha) se pasa como
+    # argumento para que Streamlit invalide el caché automáticamente cada vez
+    # que SummaryTable.csv cambie. Se usa un hash de contenido en vez de la
+    # fecha de modificación (mtime) porque en algunos flujos de subida/despliegue
+    # el mtime no cambia de forma confiable aunque el contenido sí cambie.
     path = "SummaryTable.csv"
     try:
         summary_df = pd.read_csv(path)
@@ -42,11 +46,19 @@ def load_summary_table(_file_mtime):
         st.error(f"No se pudo cargar la tabla de resumen: {e}")
         return None
 
+def _get_file_hash(path):
+    """Calcula un hash MD5 del contenido del archivo, para usar como llave de
+    caché. Devuelve None si el archivo no existe."""
+    if not os.path.exists(path):
+        return None
+    with open(path, 'rb') as f:
+        return hashlib.md5(f.read()).hexdigest()
+
 historical_df, strategies = load_data()
 
 _summary_path = "SummaryTable.csv"
-_summary_mtime = os.path.getmtime(_summary_path) if os.path.exists(_summary_path) else None
-summary_df = load_summary_table(_summary_mtime)
+_summary_hash = _get_file_hash(_summary_path)
+summary_df = load_summary_table(_summary_hash)
 
 # --- Branding ---
 st.image("EstrategiasNucleo.png", width=900)
