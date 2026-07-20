@@ -1,6 +1,7 @@
 import streamlit as st
 import pandas as pd
 import numpy as np
+import os
 from plotly.subplots import make_subplots
 import plotly.graph_objects as go
 
@@ -27,10 +28,69 @@ def load_data():
         
     return historical_df, strategies
 
+# --- Load Summary Table ---
+@st.cache_data
+def load_summary_table(_file_mtime):
+    # _file_mtime se pasa como argumento únicamente para que Streamlit invalide
+    # el caché automáticamente cada vez que SummaryTable.csv cambie en disco.
+    path = "SummaryTable.csv"
+    try:
+        summary_df = pd.read_csv(path)
+        summary_df = summary_df.loc[:, ~summary_df.columns.str.contains('^Unnamed')]
+        return summary_df
+    except Exception as e:
+        st.error(f"No se pudo cargar la tabla de resumen: {e}")
+        return None
+
 historical_df, strategies = load_data()
+
+_summary_path = "SummaryTable.csv"
+_summary_mtime = os.path.getmtime(_summary_path) if os.path.exists(_summary_path) else None
+summary_df = load_summary_table(_summary_mtime)
 
 # --- Branding ---
 st.image("EstrategiasNucleo.png", width=900)
+
+# --- Summary Metrics Table ---
+st.markdown("<h2 style='text-align: center; margin-bottom: 5px;'>Resultados Históricos por Estrategia</h2>", unsafe_allow_html=True)
+st.markdown("<p style='text-align: center; color: #666; margin-bottom: 20px;'>Utiliza estas métricas de rendimiento histórico (2007 - 2026) para guiar tu asignación en el menú lateral.</p>", unsafe_allow_html=True)
+
+if summary_df is not None:
+    # Altura calculada dinámicamente para mostrar TODAS las filas sin scroll vertical
+    tabla_altura = (len(summary_df) + 1) * 35 + 3
+
+    st.dataframe(
+        summary_df,
+        hide_index=True,
+        use_container_width=True,
+        height=tabla_altura,
+        column_config={
+            "Estrategia": st.column_config.TextColumn("Estrategia", help="Nombre del sistema cuantitativo"),
+            "Fecha": st.column_config.TextColumn("Periodo", help="Rango de fechas evaluado"),
+            "Ganancia": st.column_config.TextColumn("Ganancia Total"),
+            "CAGR": st.column_config.TextColumn("CAGR", help="Tasa de Crecimiento Anual Compuesto"),
+            "Max Caída": st.column_config.TextColumn("Max Caída", help="Peor Drawdown histórico de la estrategia"),
+            "Volatilidad": st.column_config.TextColumn("Volatilidad"),
+            "# Trades": st.column_config.NumberColumn("# Trades", format="%d"),
+            "% Ganadoras": st.column_config.TextColumn("% Ganado"),
+            "Gan. Promedio": st.column_config.TextColumn("Gan. Prom"),
+            "Perdida Promedio": st.column_config.TextColumn("Perdida Pr"),
+            "Duración G": st.column_config.TextColumn("Duración Ganadora", help="Duración promedio de operaciones ganadoras"),
+            "Duración P": st.column_config.TextColumn("Duración Perdedora", help="Duración promedio de operaciones perdedoras"),
+            "Profit Fact": st.column_config.NumberColumn("Profit Fact", format="%.1f"),
+            "Sharpe": st.column_config.ProgressColumn(
+                "Sharpe Ratio",
+                help="Relación Retorno / Riesgo",
+                format="%.1f",
+                min_value=0.0,
+                max_value=2.0
+            ),
+            "Perfil Riesgo": st.column_config.TextColumn("Perfil Riesgo"),
+            "Posiciones Simultaneas": st.column_config.NumberColumn("Posiciones", help="Número de posiciones simultáneas", format="%d"),
+            "Min Inversión (USD)": st.column_config.TextColumn("Min Inversión", help="Inversión mínima recomendada (USD)")
+        }
+    )
+    st.markdown("<hr style='margin-top:30px; margin-bottom:30px; border: 0; border-top: 1px solid #eee;'>", unsafe_allow_html=True)
 
 # Description text box
 st.markdown(
@@ -273,3 +333,53 @@ if not yearly_df.empty:
     st.dataframe(styled_yearly_df, hide_index=True, use_container_width=True)
 else:
     st.write("No data available.")
+
+# --- Footer & Disclaimer ---
+st.markdown("<br><br>", unsafe_allow_html=True)
+
+# Contenedor del Aviso de Riesgo
+st.markdown(
+    """
+    <div style="
+        background-color: #111425; 
+        border: 1px solid #ffcc00; 
+        border-radius: 20px; 
+        padding: 30px; 
+        text-align: center; 
+        margin-bottom: 30px;
+    ">
+        <h4 style="
+            color: #ffcc00; 
+            text-transform: uppercase; 
+            letter-spacing: 2px; 
+            margin-bottom: 15px; 
+            font-size: 16px; 
+            font-weight: bold;
+        ">
+            Aviso de Riesgo
+        </h4>
+        <p style="
+            color: #ffffff; 
+            font-size: 14px; 
+            line-height: 1.6; 
+            margin: 0 auto; 
+            max-width: 900px;
+        ">
+            Toda la información presente en esta web debe considerarse como una opinión y en ningún caso como un asesoramiento 
+            financiero o de inversión. Las rentabilidades pasadas no garantizan resultados futuros. Tú eres el único responsable de tus 
+            decisiones financieras. Consulta a tu asesor tributario y financiero antes de invertir.
+        </p>
+    </div>
+    """,
+    unsafe_allow_html=True
+)
+
+# Pie de página (Copyright y Créditos)
+st.markdown(
+    """
+    <div style="text-align: center; color: #666e8d; font-size: 14px; margin-top: 20px;">
+        <p>© 2026 ReplicAlgo &nbsp;&bull;&nbsp; 🤖 Actualizado por Master Bot</p>
+    </div>
+    """,
+    unsafe_allow_html=True
+)
