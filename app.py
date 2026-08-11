@@ -171,29 +171,30 @@ for strat in strategies:
     strat_fluctuations = historical_df[strat].values - 100000
     portfolio_equity += strat_fluctuations * weight
 
-# Re-apply the baseline starting equity to get final portfolio value
+# Re-apply baseline starting equity and convert to percentage cumulative return curve (%)
 final_portfolio_equity = portfolio_equity + 100000
+portfolio_pct_curve = ((final_portfolio_equity / 100000) - 1) * 100
 
 # Peak tracking for Percentage Drawdown
 cummax_equity = np.maximum.accumulate(final_portfolio_equity)
 drawdown_pct = ((final_portfolio_equity - cummax_equity) / cummax_equity) * 100
 
-total_return = final_portfolio_equity[-1] - 100000
+total_return_pct = portfolio_pct_curve[-1]
 max_drawdown_pct = drawdown_pct.min()
 dates = historical_df['time'].values
 
 # --- Pre-calculate Benchmarks Baseline For KPIs ---
-spy_return, spy_max_dd = 0.0, 0.0
+spy_return_pct, spy_max_dd = 0.0, 0.0
 if "BuyHold SPY" in historical_df.columns:
     spy_eq = historical_df["BuyHold SPY"].values
-    spy_return = spy_eq[-1] - 100000
+    spy_return_pct = ((spy_eq[-1] / 100000) - 1) * 100
     spy_cm = np.maximum.accumulate(spy_eq)
     spy_max_dd = (((spy_eq - spy_cm) / spy_cm) * 100).min()
 
-yf_return, yf_max_dd = 0.0, 0.0
+yf_return_pct, yf_max_dd = 0.0, 0.0
 if "BuyHold 60/40" in historical_df.columns:
     yf_eq = historical_df["BuyHold 60/40"].values
-    yf_return = yf_eq[-1] - 100000
+    yf_return_pct = ((yf_eq[-1] / 100000) - 1) * 100
     yf_cm = np.maximum.accumulate(yf_eq)
     yf_max_dd = (((yf_eq - yf_cm) / yf_cm) * 100).min()
 
@@ -226,9 +227,9 @@ yearly_df = pd.DataFrame(yearly_data)
 # --- Metric Display Cards ---
 col1, col2 = st.columns(2)
 
-# Build sub-metrics strings conditionally
-spy_ret_str = f"<div style='font-size:13px; color:#888; margin-top:4px;'>SPY: ${spy_return:,.0f}</div>" if show_benchmarks and "BuyHold SPY" in historical_df.columns else ""
-yf_ret_str = f"<div style='font-size:13px; color:#888;'>60/40: ${yf_return:,.0f}</div>" if show_benchmarks and "BuyHold 60/40" in historical_df.columns else ""
+# Build sub-metrics strings conditionally in percentage
+spy_ret_str = f"<div style='font-size:13px; color:#888; margin-top:4px;'>SPY: {spy_return_pct:+.2f}%</div>" if show_benchmarks and "BuyHold SPY" in historical_df.columns else ""
+yf_ret_str = f"<div style='font-size:13px; color:#888;'>60/40: {yf_return_pct:+.2f}%</div>" if show_benchmarks and "BuyHold 60/40" in historical_df.columns else ""
 
 spy_dd_str = f"<div style='font-size:13px; color:#888; margin-top:4px;'>SPY: {spy_max_dd:.2f}%</div>" if show_benchmarks and "BuyHold SPY" in historical_df.columns else ""
 yf_dd_str = f"<div style='font-size:13px; color:#888;'>60/40: {yf_max_dd:.2f}%</div>" if show_benchmarks and "BuyHold 60/40" in historical_df.columns else ""
@@ -238,7 +239,7 @@ with col1:
         f"""
         <div style='border:2px solid #ccc; border-radius:8px; padding:12px; text-align:center;'>
             <h5 style='margin:0;'>Total Net Return</h5>
-            <p style='font-size:18px; color:{"green" if total_return >= 0 else "red"}; margin:4px 0 0 0;'>${total_return:,.0f}</p>
+            <p style='font-size:18px; color:{"green" if total_return_pct >= 0 else "red"}; margin:4px 0 0 0;'>{total_return_pct:+.2f}%</p>
             {spy_ret_str}
             {yf_ret_str}
         </div>
@@ -261,12 +262,12 @@ fig = make_subplots(
     rows=2, cols=1,
     shared_xaxes=True,
     vertical_spacing=0.04,
-    subplot_titles=("Portfolio Equity Curve ($)", "Drawdown (%)"),
+    subplot_titles=("Portfolio Cumulative Return (%)", "Drawdown (%)"),
     row_heights=[0.65, 0.35]
 )
 
-# Upper Plot: Main Portfolio Equity Curve ($)
-fig.add_trace(go.Scatter(x=dates, y=final_portfolio_equity, mode="lines", name="My Portfolio", line=dict(color="green", width=2.5)), row=1, col=1)
+# Upper Plot: Main Portfolio Cumulative Return (%)
+fig.add_trace(go.Scatter(x=dates, y=portfolio_pct_curve, mode="lines", name="My Portfolio", line=dict(color="green", width=2.5)), row=1, col=1)
 
 # Lower Plot: Main Portfolio Drawdown (%)
 fig.add_trace(go.Scatter(x=dates, y=drawdown_pct, fill="tozeroy", name="Portfolio Drawdown", line=dict(color="red"), fillcolor="rgba(255,0,0,0.15)"), row=2, col=1)
@@ -276,19 +277,21 @@ if show_benchmarks:
     # --- BuyHold SPY Calculations ---
     if "BuyHold SPY" in historical_df.columns:
         spy_equity = historical_df["BuyHold SPY"].values
+        spy_pct_curve = ((spy_equity / 100000) - 1) * 100
         spy_cummax = np.maximum.accumulate(spy_equity)
         spy_dd_pct = ((spy_equity - spy_cummax) / spy_cummax) * 100
         
-        fig.add_trace(go.Scatter(x=dates, y=spy_equity, mode="lines", name="BuyHold SPY", line=dict(color="orange", dash="dash", width=1.5)), row=1, col=1)
+        fig.add_trace(go.Scatter(x=dates, y=spy_pct_curve, mode="lines", name="BuyHold SPY", line=dict(color="orange", dash="dash", width=1.5)), row=1, col=1)
         fig.add_trace(go.Scatter(x=dates, y=spy_dd_pct, mode="lines", name="BuyHold SPY", line=dict(color="orange", dash="dash", width=1.5), showlegend=False), row=2, col=1)
 
     # --- BuyHold 60/40 Calculations ---
     if "BuyHold 60/40" in historical_df.columns:
         yf_equity = historical_df["BuyHold 60/40"].values
+        yf_pct_curve = ((yf_equity / 100000) - 1) * 100
         yf_cummax = np.maximum.accumulate(yf_equity)
         yf_dd_pct = ((yf_equity - yf_cummax) / yf_cummax) * 100
         
-        fig.add_trace(go.Scatter(x=dates, y=yf_equity, mode="lines", name="BuyHold 60/40", line=dict(color="darkcyan", dash="dot", width=1.5)), row=1, col=1)
+        fig.add_trace(go.Scatter(x=dates, y=yf_pct_curve, mode="lines", name="BuyHold 60/40", line=dict(color="darkcyan", dash="dot", width=1.5)), row=1, col=1)
         fig.add_trace(go.Scatter(x=dates, y=yf_dd_pct, mode="lines", name="BuyHold 60/40", line=dict(color="darkcyan", dash="dot", width=1.5), showlegend=False), row=2, col=1)
 
 fig.update_layout(height=650, showlegend=True, hovermode="x unified", dragmode="zoom")
@@ -305,11 +308,12 @@ fig.update_xaxes(
     type="date", row=1, col=1
 )
 
-# Add % suffix to hover and axis labels for the second drawdown subplot
+# Add % suffix to axis labels for both subplots
+fig.update_yaxes(ticksuffix="%", row=1, col=1)
 fig.update_yaxes(ticksuffix="%", row=2, col=1)
 
-# Configure hover templates uniquely per row assignment
-fig.update_traces(hovertemplate="$%{y:,.0f}", row=1, col=1)
+# Configure hover templates uniquely per row assignment in percentages
+fig.update_traces(hovertemplate="%{y:+.2f}%", row=1, col=1)
 fig.update_traces(hovertemplate="%{y:.2f}%", row=2, col=1)
 
 st.plotly_chart(fig, use_container_width=True)
@@ -340,7 +344,6 @@ if not yearly_df.empty:
     def color_returns(val):
         return 'color: red' if val < 0 else 'color: green'
     
-    # Notice: changed .applymap() to .map() to support modern Pandas deployment on the cloud!
     styled_yearly_df = yearly_df.style.map(color_returns, subset=style_target_cols)\
                                       .format(format_dict)
     
